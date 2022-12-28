@@ -11,7 +11,13 @@ class PhoneRecords:
         self.contacts_filename = "Sample contacts master list.xlsx"
 
     
-    def preprocess_contacts_file(self):
+    def preprocess_files(self):
+
+        self.__preprocess_contacts_file()
+        self.__preprocess_verizon_files()
+        self.__preprocess_client_files()
+    
+    def __preprocess_contacts_file(self):
 
         df_contacts = pd.read_excel(os.path.join(self.file_root, self.contacts_filename))
         df_contacts.columns = [str.capitalize(x) for x in df_contacts.columns]
@@ -21,7 +27,7 @@ class PhoneRecords:
 
         self.df_contacts = df_contacts
 
-    def clean_verizon_billed(self):
+    def __preprocess_verizon_billed(self):
 
         df_verizonb = pd.read_csv(os.path.join(self.file_root, self.verizon_billed_filename), skiprows=13)
 
@@ -50,9 +56,9 @@ class PhoneRecords:
 
         self.df_verizonb = df_verizonb
 
-    def clean_verizon_unbilled(self):
+    def __preprocess_verizon_unbilled(self):
 
-        df_verizonu = pd.read_excel(os.path.join(file_root, verizon_unbilled_filename), skiprows=3)
+        df_verizonu = pd.read_excel(os.path.join(self.file_root, self.verizon_unbilled_filename), skiprows=3)
 
         df_verizonu = (
             df_verizonu.rename(columns={
@@ -65,9 +71,68 @@ class PhoneRecords:
 
         self.df_verizonu = df_verizonu
 
-    def clean_verizon_files(self):
+    def __preprocess_verizon_files(self):
 
-        pass
+        if self.verizon_billed_filename and self.verizon_unbilled_filename:
+
+            self.__preprocess_verizon_billed()
+            self.__preprocess_verizon_unbilled()
+            self.df_verizon = pd.concat([self.df_verizonb, self.df_verizonu])
+
+        elif self.verizon_billed_filename:
+
+            self.__preprocess_verizon_billed()
+            self.df_verizon = self.df_verizonb.copy()
+
+        elif self.verizon_unbilled_filename:
+
+            self.__preprocess_verizon_unbilled()
+            self.df_verizon = self.df_verizonu.copy()
+
+        else:
+            assert False, "No verizon file listed"
+
+    def __preprocess_client_files(self):
+
+        client_filenames = [x for x in os.listdir(self.file_root) if x.startswith("_")]
+
+        df_client = pd.concat([self.__read_clean_client_file(x) for x in client_filenames])
+        df_client.Duration = df_client.Duration.astype(int)
+
+        self.df_client = df_client
+
+    def __read_clean_client_file(self, x):
+
+        df_client = pd.read_excel(os.path.join(self.file_root, x), header=None)
+
+        df_client.columns = [
+            "Date", "Time", "Number", "Origination",
+            "Destination", "Duration", "Name 0"
+        ]
+
+        def duration_is_numeric(x):
+            try:
+                return str.isnumeric(str(int(x)))
+            except:
+                return False
+
+        df_client = (
+            df_client[
+                df_client.Duration.map(
+                    lambda x: duration_is_numeric(x)
+                    )
+                ]
+            .reset_index(drop=True)
+            )
+
+        df_client.Date = pd.to_datetime(df_client.Date)
+
+        def strip_client_name(x):
+            return x.strip("_").replace(".xlsx", "")
+
+        df_client["client name"] = strip_client_name(x)
+
+        return df_client
 
 if __name__ == "__main__":
 
@@ -76,3 +141,5 @@ if __name__ == "__main__":
     verizon_unbilled_filename = "Verizon Sample Current Unbilled Usage Report_.xls"
     contacts_filename = "Sample contacts master list.xlsx"
 
+    phone_records = PhoneRecords(file_root)
+    phone_records.preprocess_files()
