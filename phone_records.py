@@ -23,9 +23,9 @@ class PhoneRecords:
         self.__preprocess_contacts_file()
         self.__preprocess_verizon_files()
         self.__preprocess_client_files()
+        self.__preprocess_log_file()
+        self.__save_log_file()
 
-        self.log = self.df_verizon.merge(self.df_contacts, on="Number", how="left")
-    
 
     def __preprocess_contacts_file(self):
         """
@@ -172,6 +172,29 @@ class PhoneRecords:
         df_client.Number = df_client.Number.map(lambda x: pd.NA if pd.isna(x) else str(int(x)))
 
         return df_client
+
+    def __preprocess_log_file(self):
+
+        self.log = self.df_verizon.merge(self.df_contacts, on="Number", how="left")
+        self.log.Date = pd.to_datetime(self.log.Date)
+
+        df_num_client = self.df_client[["Number", "client name"]].drop_duplicates()
+        one_to_one_numbers = df_num_client.Number.value_counts()[df_num_client.Number.value_counts() == 1].index.tolist()
+
+        df_num_client = df_num_client[df_num_client.Number.isin(one_to_one_numbers)].reset_index(drop=True)
+        num_to_client_name_dict = dict(zip(df_num_client.Number, df_num_client["client name"]))
+
+        self.log["client"] = self.log.Number.map(lambda x: pd.NA if x not in num_to_client_name_dict.keys() else num_to_client_name_dict[x]).fillna(pd.NA)
+
+        self.log["Date-Time"] = pd.to_datetime(self.log.Date.astype(str) + " " + self.log.Time)
+
+        self.log = self.log.sort_values(by=["Date", "client", "Date-Time"], ascending=[False, True, True]).reset_index(drop=True)
+
+        self.log.drop("Date-Time", axis=1, inplace=True)
+
+    def __save_log_file(self):
+
+        self.log.to_csv("phone_records_compiled.csv", index=None)
 
 
 if __name__ == "__main__":
