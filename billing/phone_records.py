@@ -1,19 +1,20 @@
-import os, pandas as pd
+import os, pandas as pd, re
 
 import warnings
 warnings.simplefilter("ignore")
 
 class PhoneRecords:
 
-    def __init__(self, file_root):
+    def __init__(self, file_root, supplemental_filenames):
         """
         """
 
         self.file_root = file_root
 
-        self.verizon_billed_filename = "Verizon Sample Call detail report billed calls.csv"
-        self.verizon_unbilled_filename = "Verizon Sample Current Unbilled Usage Report_.xls"
-        self.contacts_filename = "Sample contacts master list.xlsx"
+        contacts_filename, verizon_billed_filename, verizon_unbilled_filename = supplemental_filenames
+        self.contacts_filename = contacts_filename
+        self.verizon_billed_filename = verizon_billed_filename
+        self.verizon_unbilled_filename = verizon_unbilled_filename
 
     
     def preprocess_files(self):
@@ -200,9 +201,11 @@ class PhoneRecords:
 if __name__ == "__main__":
 
     file_root = "./sample files/"
-    verizon_billed_filename = "Verizon Sample Call detail report billed calls.csv"
-    verizon_unbilled_filename = "Verizon Sample Current Unbilled Usage Report_.xls"
-    contacts_filename = "Sample contacts master list.xlsx"
+    verizon_billed_filename = [x for x in os.listdir(file_root) if bool(re.search(r"call detail.*wireless.*[.](csv|xls)", str.lower(x)))][0]
+    verizon_unbilled_filename = [x for x in os.listdir(file_root) if bool(re.search(r"minutesusagefor.*[.](xls|csv)", str.lower(x)))][0]
+    contacts_filename = "contacts master list.xlsx"
 
-    phone_records = PhoneRecords(file_root)
+    supplemental_filenames = (contacts_filename, verizon_billed_filename, verizon_unbilled_filename)
+
+    phone_records = PhoneRecords(file_root, supplemental_filenames)
     phone_records.preprocess_files()

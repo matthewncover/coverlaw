@@ -1,6 +1,8 @@
-sample files/*
+*/sample files/*
 improvements.txt
 *sandbox*
+*.csv
+*.xls*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
